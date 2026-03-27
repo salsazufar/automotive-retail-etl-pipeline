@@ -1,0 +1,56 @@
+run_storage:
+  module: dagster_mysql.run_storage
+  class: MySQLRunStorage
+  config:
+    mysql_db:
+      username:
+        env: MYSQL_USER
+      password:
+        env: MYSQL_PASSWORD
+      hostname:
+        env: MYSQL_HOST
+      db_name:
+        env: DAGSTER_MYSQL_DATABASE
+      port:
+        env: MYSQL_PORT
+
+event_log_storage:
+  module: dagster_mysql.event_log
+  class: MySQLEventLogStorage
+  config:
+    mysql_db:
+      username:
+        env: MYSQL_USER
+      password:
+        env: MYSQL_PASSWORD
+      hostname:
+        env: MYSQL_HOST
+      db_name:
+        env: DAGSTER_MYSQL_DATABASE
+      port:
+        env: MYSQL_PORT
+
+schedule_storage:
+  module: dagster_mysql.schedule_storage
+  class: MySQLScheduleStorage
+  config:
+    mysql_db:
+      username:
+        env: MYSQL_USER
+      password:
+        env: MYSQL_PASSWORD
+      hostname:
+        env: MYSQL_HOST
+      db_name:
+        env: DAGSTER_MYSQL_DATABASE
+      port:
+        env: MYSQL_PORT
+
+local_artifact_storage:
+  module: dagster._core.storage.root
+  class: LocalArtifactStorage
+  config:
+    base_dir: /opt/dagster/dagster_home
+
+telemetry:
+  enabled: false

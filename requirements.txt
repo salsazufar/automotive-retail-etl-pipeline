@@ -1,0 +1,8 @@
+dagster==1.9.*
+dagster-webserver==1.9.*
+dagster-mysql==0.25.*
+pandas==2.2.*
+SQLAlchemy==2.0.*
+pymysql==1.1.*
+python-dotenv==1.0.*
+python-dateutil==2.9.*

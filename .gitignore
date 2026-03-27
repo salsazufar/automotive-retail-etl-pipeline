@@ -1,0 +1,37 @@
+.env
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Local data files and archives
+data/input/*
+!data/input/.gitkeep
+data/archive/*
+!data/archive/.gitkeep
+.agents/
+plan/
+skills-lock.json
+
+# Binary docs
+*.pdf
+
+# IDE/editor settings
+.vscode/
+.idea/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Dagster local artifacts
+.dagster/
+.dagster_home/*
+!.dagster_home/dagster.yaml
+!.dagster_home/workspace.yaml

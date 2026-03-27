@@ -1,0 +1,115 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: maju_jaya_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-maju_jaya_dw}
+      MYSQL_USER: ${MYSQL_USER:-maju_jaya}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-secret}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - dagster_network
+
+  user_code:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: maju_jaya_user_code
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_USER: ${MYSQL_USER:-maju_jaya}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-secret}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-maju_jaya_dw}
+      DAGSTER_MYSQL_DATABASE: ${DAGSTER_MYSQL_DATABASE:-dagster_internal}
+      CSV_INPUT_DIR: ${CSV_INPUT_DIR:-data/input}
+      CSV_ARCHIVE_DIR: ${CSV_ARCHIVE_DIR:-data/archive}
+      DAGSTER_HOME: ${DAGSTER_HOME:-/opt/dagster/dagster_home}
+    volumes:
+      - ./src:/opt/dagster/app/src
+      - ./data:/opt/dagster/app/data
+      - ./dagster_home:/opt/dagster/dagster_home
+    command: ["dagster", "code-server", "start", "-h", "0.0.0.0", "-p", "4000", "-m", "src.definitions"]
+    healthcheck:
+      test: ["CMD", "dagster", "api", "grpc-health-check", "-p", "4000"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - dagster_network
+
+  dagster_webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: maju_jaya_webserver
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_USER: ${MYSQL_USER:-maju_jaya}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-secret}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-maju_jaya_dw}
+      DAGSTER_MYSQL_DATABASE: ${DAGSTER_MYSQL_DATABASE:-dagster_internal}
+      DAGSTER_HOME: ${DAGSTER_HOME:-/opt/dagster/dagster_home}
+    volumes:
+      - ./dagster_home:/opt/dagster/dagster_home
+    command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/dagster_home/workspace.yaml"]
+    ports:
+      - "3000:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      user_code:
+        condition: service_healthy
+    networks:
+      - dagster_network
+
+  dagster_daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: maju_jaya_daemon
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_USER: ${MYSQL_USER:-maju_jaya}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-secret}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-maju_jaya_dw}
+      DAGSTER_MYSQL_DATABASE: ${DAGSTER_MYSQL_DATABASE:-dagster_internal}
+      DAGSTER_HOME: ${DAGSTER_HOME:-/opt/dagster/dagster_home}
+    volumes:
+      - ./dagster_home:/opt/dagster/dagster_home
+    command: ["dagster-daemon", "run", "-w", "/opt/dagster/dagster_home/workspace.yaml"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      user_code:
+        condition: service_healthy
+    networks:
+      - dagster_network
+
+volumes:
+  mysql_data:
+
+networks:
+  dagster_network:
+    driver: bridge
