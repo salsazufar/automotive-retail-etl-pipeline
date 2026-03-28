@@ -312,7 +312,7 @@ Use this before running the pipeline if you want a clean reproducible demo datas
 | Silver | `sales_silver` | Price: strip IDR thousand-separator dots, cast to integer |
 | Silver | `sales_silver` | Future `invoice_date` → quarantined |
 | Silver | `sales_silver` | Unknown `customer_id` → quarantined |
-| Silver | `sales_silver` | Deduplication by business key (customer, model, date, price); keep earliest `created_at` |
+| Silver | `sales_silver` | Deduplication by VIN (globally unique vehicle identifier); keep earliest `created_at` |
 | Silver | `after_sales_silver` | `service_date` before `invoice_date` → quarantined |
 | Silver | `after_sales_silver` | Future `service_date` → quarantined |
 | Silver | `after_sales_silver` | Unknown `customer_id` → quarantined |
@@ -373,8 +373,8 @@ Transformations applied:
   - `invoice_date` is in the future,
   - `customer_id` does not exist in `customers_raw`,
   - `price` cannot be parsed.
-- Deduplicate on business key:
-  - `customer_id, model, invoice_date, price`,
+- Deduplicate on VIN:
+  - `vin` (globally unique vehicle identifier),
   - keep earliest `created_at`.
 - Output table refreshed with `TRUNCATE + INSERT`.
 
@@ -385,9 +385,10 @@ Transformations applied:
 - Quarantine and drop rows when:
   - `customer_id` not found in `customers_silver`,
   - `service_date` in the future,
-  - `service_date` earlier than corresponding vehicle `invoice_date`.
+  - `service_date` earlier than corresponding vehicle `invoice_date` (non-orphan VINs only).
 - Set orphan indicator:
   - `is_orphan = TRUE` if `vin` not found in `sales_silver`,
+  - orphan VINs skip the service_date vs invoice_date check because no invoice exists,
   - retained for downstream filtering.
 - Output table refreshed with `TRUNCATE + INSERT`.
 

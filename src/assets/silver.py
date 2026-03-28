@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any
 
 import dagster as dg
@@ -13,20 +13,16 @@ from sqlalchemy import text
 
 from src.resources.mysql_resource import MySQLResource
 
-# ---------------------------------------------------------------------------
 # Province abbreviation corrections applied after str.title().
-# str.title() lowercases all-caps abbreviations: "DKI" -> "Dki".
-# ---------------------------------------------------------------------------
+
 _PROVINCE_CORRECTIONS: dict[str, str] = {
     "Dki Jakarta": "DKI Jakarta",
     "Di Yogyakarta": "DI Yogyakarta",
     "Diy": "DIY",
 }
 
-# ---------------------------------------------------------------------------
 # City -> correct province mapping for factually wrong source data.
 # Tangerang Selatan is in Banten, NOT Jawa Barat.
-# ---------------------------------------------------------------------------
 _CITY_PROVINCE_OVERRIDES: dict[str, str] = {
     "Tangerang Selatan": "Banten",
     "Tangerang": "Banten",
@@ -34,14 +30,10 @@ _CITY_PROVINCE_OVERRIDES: dict[str, str] = {
     "Cilegon": "Banten",
 }
 
-# ---------------------------------------------------------------------------
 # Indonesian corporate entity prefixes used for entity-type detection.
-# ---------------------------------------------------------------------------
 _CORPORATE_PREFIXES: tuple[str, ...] = ("PT ", "CV ", "UD ", "FIRMA ", "YAYASAN ", "KOPERASI ")
 
-# ---------------------------------------------------------------------------
 # DOB validity bounds.
-# ---------------------------------------------------------------------------
 _DOB_MIN_YEAR = 1925
 _DOB_SENTINEL = "1900-01-01"
 
@@ -79,7 +71,7 @@ def _quarantine_rows(
     """Insert rejected rows into cleaning_quarantine for audit."""
     if df.empty:
         return
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     rows = [
         {
             "source_table": source_table,
@@ -199,8 +191,8 @@ def sales_silver(context, mysql: MySQLResource) -> None:
 
         df["price"] = df["price"].astype("int64")
 
-        # --- Deduplication: keep earliest created_at per business key ---
-        dedup_keys = ["customer_id", "model", "invoice_date", "price"]
+        # --- Deduplication: keep earliest created_at per VIN ---
+        dedup_keys = ["vin"]
         df = df.sort_values("created_at", ascending=True).drop_duplicates(
             subset=dedup_keys, keep="first"
         )
@@ -272,7 +264,8 @@ def after_sales_silver(context, mysql: MySQLResource) -> None:
             on="vin",
             how="left",
         )
-        # Only flag non-orphan VINs where service is before invoice
+        # Only flag non-orphan VINs where service is before invoice.
+        # Orphan VINs have NULL _invoice_date from the LEFT JOIN and are skipped here.
         early_service_mask = (
             after_sales_df["_invoice_date"].notna()
             & (after_sales_df["service_date"] < after_sales_df["_invoice_date"])

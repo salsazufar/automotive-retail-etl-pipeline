@@ -83,7 +83,10 @@ def datamart_service_priority(context, mysql: MySQLResource) -> None:
           DATE_FORMAT(a.service_date, '%Y') AS periode,
           a.vin,
           c.name AS customer_name,
-          CONCAT(la.address, ', ', la.city, ', ', la.province) AS address,
+          COALESCE(
+            CONCAT_WS(', ', la.address, la.city, la.province),
+            'Unknown'
+          ) AS address,
           COUNT(a.service_ticket) AS count_service,
           CASE
             WHEN COUNT(a.service_ticket) > 10 THEN 'HIGH'

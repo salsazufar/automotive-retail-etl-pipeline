@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -151,7 +151,7 @@ def customer_addresses_bronze(context, mysql: MySQLResource) -> None:
                     {"fn": filename},
                 )
 
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             row_count = int(len(df.index))
 
             df = df.copy()
